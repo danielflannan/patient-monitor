@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clinical Telemetry Dashboard</title>
+  <style>
+    :root {
+      --primary-blue: #0b3c5d; --accent-blue: #328cc1; --alert-red: #d9534f;
+      --safe-green: #5cb85c; --bg-color: #f4f7f6; --card-bg: #ffffff;
+      --text-main: #333333; --text-muted: #777777;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+    body { background-color: var(--bg-color); color: var(--text-main); }
+
+    /* Top Navigation Bar */
+    .navbar { background-color: var(--primary-blue); color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .navbar h1 { font-size: 1.5em; font-weight: 600; }
+    .clock { font-size: 1.1em; font-weight: 500; color: #a8d0e6; }
+
+    /* Layout */
+    .container { display: flex; flex-wrap: wrap; padding: 30px; gap: 30px; max-width: 1400px; margin: 0 auto; }
+    .card { background-color: var(--card-bg); border-radius: 12px; box-shadow: 0 6px 15px rgba(0,0,0,0.05); padding: 25px; flex: 1; min-width: 350px; border-top: 5px solid var(--accent-blue); }
+    .card h2 { color: var(--primary-blue); font-size: 1.3em; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+
+    /* Live & Last Data */
+    .status-badge { display: inline-block; padding: 6px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9em; background-color: #e8f5e9; color: var(--safe-green); margin-bottom: 10px; border: 1px solid var(--safe-green); }
+    
+    .live-data { font-size: 2.3em; font-weight: bold; color: var(--primary-blue); margin: 15px 0; padding: 15px; border: 2px dashed #ccc; border-radius: 10px; text-align: center; background-color: #f9fbfd; }
+    .live-data.alert { border-color: var(--alert-red); color: var(--alert-red); background-color: #fdeceb; }
+
+    /* Last Position Sub-card */
+    .history-box { background-color: #f1f5f8; border-radius: 8px; padding: 12px; margin-top: 15px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--accent-blue); }
+    .history-label { font-size: 0.9em; color: var(--text-muted); font-weight: 600; }
+    .history-value { font-size: 1.1em; font-weight: bold; color: var(--primary-blue); }
+
+    /* Google Sheets & Buttons */
+    .iframe-container { width: 100%; height: 380px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; margin-bottom: 15px; }
+    iframe { width: 100%; height: 100%; border: none; }
+    
+    .btn { width: 100%; padding: 14px; border: none; border-radius: 6px; font-size: 1.1em; font-weight: bold; cursor: pointer; transition: 0.2s; text-align: center; text-decoration: none; color: white; background-color: var(--primary-blue); display: block; }
+    .btn:hover { background-color: #082942; }
+
+    /* Print Formatting */
+    @media print {
+      .btn { display: none; }
+      body { background-color: white; }
+      .card { box-shadow: none; border: 1px solid #ccc; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="navbar">
+    <h1>✚ PKS Advanced Care | IoT Pressure Injury Prevention Systems</h1>
+    <div class="clock" id="liveClock">00:00:00</div>
+  </header>
+
+  <div class="container">
+    
+    <!-- LEFT COLUMN: Live Monitor & Last Position -->
+    <div class="card">
+      <h2>Live Patient Orientation Monitor</h2>
+      
+      <div style="text-align: center; margin-top: 10px;">
+        <span class="status-badge" id="systemStatus">🟢 Sensor Connected</span>
+        
+        <p style="color: var(--text-muted); margin-top: 10px; font-size: 0.95em;">Current Physical Orientation:</p>
+        <div class="live-data" id="postureData">Waiting...</div>
+        
+        <!-- NEW: Last Recorded Position View -->
+        <div class="history-box">
+          <span class="history-label">Previous Orientation:</span>
+          <span class="history-value" id="lastPostureData">None recorded</span>
+        </div>
+
+        <p style="font-size: 0.8em; color: var(--text-muted); margin-top: 20px;">Powered by Seeed XIAO ESP32C3 & MPU6050 IoT Edge Computing</p>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN: Google Sheets Preview & Open Link -->
+    <div class="card" style="flex: 2; min-width: 500px;">
+      <h2>Repositioning Chart Compliance Log</h2>
+      
+      <div class="iframe-container">
+        <iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vQRfFZxyRMc_Y1nPDCFobnDk8ifKDj3yBx6sWq7Sq-Sw9ZdAEVGzhHd8DhsaZVySW50d_ZFQxYUdYX1/pubhtml?widget=true&amp;headers=false"></iframe>
+      </div>
+
+      <a href="https://docs.google.com/spreadsheets/d/1KJx8Y5J1BhbirhAeJthv6a9PSitOkcAE6iouC1NWqHY/edit?usp=sharing" target="_blank" class="btn">🖨️ Open Sheet for Print / Sign</a>
+    </div>
+
+  </div>
+
+  <script>
+    // 1. LIVE CLOCK
+    setInterval(() => document.getElementById('liveClock').innerText = new Date().toLocaleTimeString(), 1000);
+
+    // 2. FIREBASE IOT FETCH & HISTORY TRACKING
+    const firebaseUrl = "https://patientmonitor-4bc41-default-rtdb.asia-southeast1.firebasedatabase.app/Position.json?auth=BCfmlBnWlgX7cNgWvh0Ho0haxfTLPlFgp99MYom1";
+    
+    let previousPosition = "";
+
+    function fetchLiveData() {
+      fetch(firebaseUrl).then(r => r.json()).then(data => {
+        const p = document.getElementById("postureData");
+        const lastP = document.getElementById("lastPostureData");
+
+        if(data) {
+          // If the position changes, update the history box before changing the live display
+          if (previousPosition !== "" && previousPosition !== data) {
+            lastP.innerText = previousPosition;
+          }
+          
+          p.innerText = data;
+          previousPosition = data; // Keep track of current state
+
+          data.includes("Prone") ? p.classList.add("alert") : p.classList.remove("alert");
+        }
+      }).catch(e => {
+        document.getElementById("systemStatus").innerText = "🔴 Connection Lost";
+        document.getElementById("systemStatus").style.color = "red";
+      });
+    }
+    
+    fetchLiveData(); 
+    setInterval(fetchLiveData, 2000);
+  </script>
+</body>
+</html>
