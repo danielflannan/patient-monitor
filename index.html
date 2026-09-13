@@ -9,7 +9,6 @@
       --primary-blue: #0b3c5d;
       --accent-blue: #328cc1;
       --alert-red: #d9534f;
-      --warning-orange: #f0ad4e;
       --safe-green: #5cb85c;
       --bg-color: #f4f7f6;
       --card-bg: #ffffff;
@@ -29,7 +28,7 @@
       align-items: center;
       box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
-    .navbar h1 { font-size: 1.4em; font-weight: 600; }
+    .navbar h1 { font-size: 1.35em; font-weight: 600; }
     .clock { font-size: 1.1em; font-weight: 500; color: #a8d0e6; }
 
     /* Layout */
@@ -119,7 +118,7 @@
     .timer-value { font-size: 1.3em; font-weight: bold; color: var(--accent-blue); font-family: monospace; }
     .timer-value.urgent { color: var(--alert-red); }
 
-    /* Scrollable Past Positions Timeline */
+    /* Scrollable History Timeline */
     .history-header {
       display: flex;
       justify-content: space-between;
@@ -131,17 +130,6 @@
       font-size: 0.95em;
       font-weight: 700;
       color: var(--primary-blue);
-    }
-    .btn-clear-history {
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      font-size: 0.75em;
-      text-decoration: underline;
-      cursor: pointer;
-    }
-    .btn-clear-history:hover {
-      color: var(--alert-red);
     }
 
     .history-container {
@@ -171,7 +159,6 @@
     }
     .history-pos { font-weight: bold; color: var(--primary-blue); }
     .history-duration { color: #555; background: #f1f5f9; padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 0.82em; }
-    .history-time { font-size: 0.78em; color: var(--text-muted); }
 
     /* Google Sheets Frame & Button */
     .iframe-container {
@@ -202,7 +189,7 @@
     .btn:hover { background-color: #082942; }
 
     @media print {
-      .btn, .navbar, .btn-clear-history { display: none; }
+      .btn, .navbar { display: none; }
       body { background-color: white; }
       .card { box-shadow: none; border: 1px solid #ccc; }
     }
@@ -217,34 +204,34 @@
 
   <div class="container">
     
-    <!-- LEFT COLUMN: Live Telemetry, Persistent 30s Countdown, & Scrollable History -->
+    <!-- LEFT COLUMN: Real-Time Multi-Device Cloud Telemetry -->
     <div class="card">
       <h2>Patient Telemetry & Motion Log</h2>
       
       <div style="text-align: center;">
-        <span class="status-badge" id="systemStatus">⚪ Checking Sensor...</span>
+        <span class="status-badge" id="systemStatus">⚪ Connecting to Cloud...</span>
         
         <p style="color: var(--text-muted); font-size: 0.9em; margin-top: 5px;">Current Detected Posture:</p>
         <div class="live-data" id="postureData">Awaiting Data...</div>
       </div>
 
-      <!-- 30-Second Turn Countdown (Persists across reloads) -->
+      <!-- 30-Second Turn Countdown -->
       <div class="timer-container">
         <div>
           <span class="timer-label">⏱️ Turn Due Countdown (30s):</span>
-          <div style="font-size: 0.75em; color: var(--text-muted);">Synced to actual elapsed duration</div>
+          <div style="font-size: 0.75em; color: var(--text-muted);">Cloud-synchronized across all devices</div>
         </div>
         <div class="timer-value" id="turnTimer">00:30</div>
       </div>
 
       <!-- Scrollable Recorded Past Positions -->
       <div class="history-header">
-        <span class="history-title">📋 Recorded Posture History:</span>
-        <button class="btn-clear-history" onclick="clearHistoryLog()" title="Clear cached log history">Clear History</button>
+        <span class="history-title">📋 Cloud Posture History:</span>
+        <span style="font-size: 0.78em; color: var(--text-muted);">Live Sync</span>
       </div>
       <div class="history-container" id="historyLog">
         <div style="text-align: center; color: #999; padding: 20px 0; font-size: 0.85em;" id="emptyLogMsg">
-          No previous turns recorded yet.
+          No turn records in cloud yet.
         </div>
       </div>
 
@@ -274,205 +261,116 @@
       document.getElementById('liveClock').innerText = new Date().toLocaleTimeString();
     }, 1000);
 
-    // ================= CONFIGURATION =================
-    const TURN_INTERVAL_SECONDS = 30; // 30s test duration
-    const firebaseUrl = "https://patientmonitor-4bc41-default-rtdb.asia-southeast1.firebasedatabase.app/Position.json?auth=BCfmlBnWlgX7cNgWvh0Ho0haxfTLPlFgp99MYom1";
+    // ================= FIREBASE CLOUD CONFIG =================
+    const TURN_INTERVAL_SECONDS = 30; // 30s test interval
+    const BASE_DB_URL = "https://patientmonitor-4bc41-default-rtdb.asia-southeast1.firebasedatabase.app";
+    const AUTH_KEY = "BCfmlBnWlgX7cNgWvh0Ho0haxfTLPlFgp99MYom1";
 
-    // 2. PERSISTENCE LAYER: RESTORE FROM LOCALSTORAGE
-    let currentPosition = localStorage.getItem("pm_current_position") || "";
-    let positionStartTime = parseInt(localStorage.getItem("pm_position_start_time")) || 0;
-    let historyEntries = [];
+    let lastHeartbeatValue = null;
+    let lastHeartbeatChangeTime = Date.now();
+    let turnStartTimeClient = Date.now();
+    let activePosition = "";
 
-    try {
-      const savedHistory = localStorage.getItem("pm_history_log");
-      if (savedHistory) {
-        historyEntries = JSON.parse(savedHistory);
-      }
-    } catch (e) {
-      historyEntries = [];
-    }
-
-    // Helper: Format elapsed duration (seconds -> readable string)
-    function formatDuration(seconds) {
-      if (seconds < 60) return `${seconds}s`;
-      const mins = Math.floor(seconds / 60);
-      const secs = seconds % 60;
-      return `${mins}m ${secs}s`;
-    }
-
-    // Helper: Render the scrollable history box
-    function renderHistory() {
-      const logContainer = document.getElementById("historyLog");
-      if (historyEntries.length === 0) {
-        logContainer.innerHTML = `
-          <div style="text-align: center; color: #999; padding: 20px 0; font-size: 0.85em;" id="emptyLogMsg">
-            No previous turns recorded yet.
-          </div>`;
-        return;
-      }
-
-      logContainer.innerHTML = "";
-      historyEntries.forEach(entry => {
-        const row = document.createElement("div");
-        row.className = "history-item";
-        row.innerHTML = `
-          <div>
-            <span class="history-pos">${entry.position}</span>
-            <div class="history-time">Recorded at ${entry.time}</div>
-          </div>
-          <span class="history-duration">Held: ${entry.duration}</span>
-        `;
-        logContainer.appendChild(row);
-      });
-    }
-
-    function logPositionHistory(position, durationSecs) {
-      if (!position || position === "Transitioning..." || position === "Waiting...") return;
-
-      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      const item = {
-        position: position,
-        duration: formatDuration(durationSecs),
-        time: timeStr
-      };
-
-      historyEntries.unshift(item); // Newest on top
-      if (historyEntries.length > 50) historyEntries.pop(); // Keep last 50
-
-      localStorage.setItem("pm_history_log", JSON.stringify(historyEntries));
-      renderHistory();
-    }
-
-    function clearHistoryLog() {
-      if (confirm("Clear local posture history?")) {
-        historyEntries = [];
-        localStorage.removeItem("pm_history_log");
-        renderHistory();
-      }
-    }
-
-    // Initial render of cached history on page load
-    renderHistory();
-
-    // If we already know the current position from localStorage, show it immediately!
-    if (currentPosition) {
-      document.getElementById("postureData").innerText = currentPosition;
-    }
-
-    // 3. WALL-CLOCK SYNCHRONIZED COUNTDOWN TIMER
-    let timerInterval = null;
-
-    function runTimerTick() {
-      if (!positionStartTime) return;
-
-      const elapsedSeconds = Math.floor((Date.now() - positionStartTime) / 1000);
-      const secondsRemaining = TURN_INTERVAL_SECONDS - elapsedSeconds;
-
+    // 2. COUNTDOWN TIMER TICK
+    function updateCountdown() {
+      const elapsed = Math.floor((Date.now() - turnStartTimeClient) / 1000);
+      const remaining = TURN_INTERVAL_SECONDS - elapsed;
       const timerDisplay = document.getElementById("turnTimer");
       const postureEl = document.getElementById("postureData");
 
-      if (secondsRemaining > 0) {
-        const mins = String(Math.floor(secondsRemaining / 60)).padStart(2, '0');
-        const secs = String(secondsRemaining % 60).padStart(2, '0');
+      if (remaining > 0) {
+        const mins = String(Math.floor(remaining / 60)).padStart(2, '0');
+        const secs = String(remaining % 60).padStart(2, '0');
         timerDisplay.innerText = `${mins}:${secs}`;
-
-        if (secondsRemaining <= 10) {
-          timerDisplay.classList.add("urgent");
-        } else {
-          timerDisplay.classList.remove("urgent");
-        }
-
-        if (!currentPosition.toLowerCase().includes("prone")) {
-          postureEl.classList.remove("alert");
-        }
+        if (remaining <= 10) timerDisplay.classList.add("urgent");
+        else timerDisplay.classList.remove("urgent");
+        if (!activePosition.toLowerCase().includes("prone")) postureEl.classList.remove("alert");
       } else {
-        // OVERDUE
         timerDisplay.innerText = "OVERDUE!";
         timerDisplay.classList.add("urgent");
         postureEl.classList.add("alert");
       }
     }
+    setInterval(updateCountdown, 1000);
 
-    function startTimerMonitoring() {
-      if (timerInterval) clearInterval(timerInterval);
-      runTimerTick();
-      timerInterval = setInterval(runTimerTick, 1000);
-    }
-
-    // Start timer immediately if start time exists in localStorage
-    if (positionStartTime > 0) {
-      startTimerMonitoring();
-    }
-
-    // 4. FIREBASE TELEMETRY LISTENER & SMART CHANGE DETECTION
-    let failedAttempts = 0;
-
-    function fetchLiveData() {
-      fetch(firebaseUrl)
-        .then(response => {
-          if (!response.ok) throw new Error("Network error");
-          return response.json();
-        })
+    // 3. FETCH FULL ROOT TELEMETRY FROM FIREBASE
+    function syncCloudData() {
+      fetch(`${BASE_DB_URL}/.json?auth=${AUTH_KEY}`)
+        .then(res => res.json())
         .then(data => {
-          const postureEl = document.getElementById("postureData");
-          const statusEl = document.getElementById("systemStatus");
+          if (!data) return;
 
-          if (data && data !== "null" && data !== "") {
-            failedAttempts = 0;
+          const statusEl = document.getElementById("systemStatus");
+          const postureEl = document.getElementById("postureData");
+
+          // --- SENSOR ONLINE CHECK (Via Heartbeat) ---
+          if (data.Heartbeat !== undefined) {
+            if (data.Heartbeat !== lastHeartbeatValue) {
+              lastHeartbeatValue = data.Heartbeat;
+              lastHeartbeatChangeTime = Date.now();
+            }
+          }
+
+          // If no new heartbeat received in last 8 seconds, mark as offline
+          const isAlive = (Date.now() - lastHeartbeatChangeTime) < 8000;
+          if (isAlive) {
             statusEl.innerText = "🟢 Sensor Connected & Active";
             statusEl.className = "status-badge connected";
+          } else {
+            statusEl.innerText = "🔴 Sensor Offline / Disconnected";
+            statusEl.className = "status-badge";
+          }
 
-            // If this is a genuine change in position:
-            if (currentPosition !== "" && currentPosition !== data) {
-              const elapsedSecs = Math.max(1, Math.round((Date.now() - positionStartTime) / 1000));
-              logPositionHistory(currentPosition, elapsedSecs);
-
-              // Reset start time to now
-              positionStartTime = Date.now();
-              currentPosition = data;
-
-              // Save to localStorage
-              localStorage.setItem("pm_current_position", currentPosition);
-              localStorage.setItem("pm_position_start_time", positionStartTime.toString());
-
-              startTimerMonitoring();
-            } else if (currentPosition === "") {
-              // Very first time opening the website
-              currentPosition = data;
-              positionStartTime = Date.now();
-
-              localStorage.setItem("pm_current_position", currentPosition);
-              localStorage.setItem("pm_position_start_time", positionStartTime.toString());
-
-              startTimerMonitoring();
+          // --- POSITION & CLOUD TIMER SYNC ---
+          if (data.Position) {
+            if (data.Position !== activePosition) {
+              activePosition = data.Position;
+              turnStartTimeClient = Date.now(); // Sync countdown on new turn
             }
-
-            postureEl.innerText = data;
-
-            if (data.toLowerCase().includes("prone")) {
+            postureEl.innerText = data.Position;
+            if (data.Position.toLowerCase().includes("prone")) {
               postureEl.classList.add("alert");
             }
-          } else {
-            handleDisconnected();
+          }
+
+          // --- CLOUD HISTORY LIST SYNC ---
+          if (data.History) {
+            renderCloudHistory(data.History);
           }
         })
         .catch(err => {
-          failedAttempts++;
-          if (failedAttempts >= 2) {
-            handleDisconnected();
-          }
+          const statusEl = document.getElementById("systemStatus");
+          statusEl.innerText = "🔴 Cloud Connection Error";
+          statusEl.className = "status-badge";
         });
     }
 
-    function handleDisconnected() {
-      const statusEl = document.getElementById("systemStatus");
-      statusEl.innerText = "🔴 Sensor Offline / Unreachable";
-      statusEl.className = "status-badge";
+    function renderCloudHistory(historyObj) {
+      const container = document.getElementById("historyLog");
+      container.innerHTML = "";
+
+      // Convert Firebase Push Object into an array and reverse (newest first)
+      const items = Object.values(historyObj).reverse();
+
+      if (items.length === 0) {
+        container.innerHTML = `<div style="text-align:center; color:#999; padding:20px 0; font-size:0.85em;">No turn records in cloud yet.</div>`;
+        return;
+      }
+
+      items.slice(0, 30).forEach(item => {
+        const div = document.createElement("div");
+        div.className = "history-item";
+        div.innerHTML = `
+          <span class="history-pos">${item.position || "Unknown"}</span>
+          <span class="history-duration">Held: ${item.duration || "N/A"}</span>
+        `;
+        container.appendChild(div);
+      });
     }
 
-    // Poll Firebase every 2 seconds
-    fetchLiveData();
-    setInterval(fetchLiveData, 2000);
+    // Sync cloud every 1.5 seconds
+    syncCloudData();
+    setInterval(syncCloudData, 1500);
   </script>
 </body>
 </html>
