@@ -3,47 +3,192 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Clinical Telemetry Dashboard</title>
+  <title>Clinical Telemetry & Posture Dashboard</title>
   <style>
     :root {
-      --primary-blue: #0b3c5d; --accent-blue: #328cc1; --alert-red: #d9534f;
-      --safe-green: #5cb85c; --bg-color: #f4f7f6; --card-bg: #ffffff;
-      --text-main: #333333; --text-muted: #777777;
+      --primary-blue: #0b3c5d;
+      --accent-blue: #328cc1;
+      --alert-red: #d9534f;
+      --warning-orange: #f0ad4e;
+      --safe-green: #5cb85c;
+      --bg-color: #f4f7f6;
+      --card-bg: #ffffff;
+      --text-main: #333333;
+      --text-muted: #777777;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
     body { background-color: var(--bg-color); color: var(--text-main); }
 
     /* Top Navigation Bar */
-    .navbar { background-color: var(--primary-blue); color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    .navbar h1 { font-size: 1.5em; font-weight: 600; }
+    .navbar {
+      background-color: var(--primary-blue);
+      color: white;
+      padding: 15px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .navbar h1 { font-size: 1.4em; font-weight: 600; }
     .clock { font-size: 1.1em; font-weight: 500; color: #a8d0e6; }
 
     /* Layout */
-    .container { display: flex; flex-wrap: wrap; padding: 30px; gap: 30px; max-width: 1400px; margin: 0 auto; }
-    .card { background-color: var(--card-bg); border-radius: 12px; box-shadow: 0 6px 15px rgba(0,0,0,0.05); padding: 25px; flex: 1; min-width: 350px; border-top: 5px solid var(--accent-blue); }
-    .card h2 { color: var(--primary-blue); font-size: 1.3em; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      padding: 25px;
+      gap: 25px;
+      max-width: 1450px;
+      margin: 0 auto;
+    }
+    .card {
+      background-color: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: 0 6px 15px rgba(0,0,0,0.05);
+      padding: 22px;
+      flex: 1;
+      min-width: 360px;
+      border-top: 5px solid var(--accent-blue);
+      display: flex;
+      flex-direction: column;
+    }
+    .card h2 {
+      color: var(--primary-blue);
+      font-size: 1.25em;
+      margin-bottom: 15px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
 
-    /* Live & Last Data */
-    .status-badge { display: inline-block; padding: 6px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9em; background-color: #e8f5e9; color: var(--safe-green); margin-bottom: 10px; border: 1px solid var(--safe-green); }
-    
-    .live-data { font-size: 2.3em; font-weight: bold; color: var(--primary-blue); margin: 15px 0; padding: 15px; border: 2px dashed #ccc; border-radius: 10px; text-align: center; background-color: #f9fbfd; }
-    .live-data.alert { border-color: var(--alert-red); color: var(--alert-red); background-color: #fdeceb; }
+    /* Sensor Status Badge */
+    .status-badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 0.85em;
+      background-color: #fbeae8;
+      color: var(--alert-red);
+      border: 1px solid var(--alert-red);
+      margin-bottom: 12px;
+      transition: all 0.3s ease;
+    }
+    .status-badge.connected {
+      background-color: #e8f5e9;
+      color: var(--safe-green);
+      border-color: var(--safe-green);
+    }
 
-    /* Last Position Sub-card */
-    .history-box { background-color: #f1f5f8; border-radius: 8px; padding: 12px; margin-top: 15px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--accent-blue); }
-    .history-label { font-size: 0.9em; color: var(--text-muted); font-weight: 600; }
-    .history-value { font-size: 1.1em; font-weight: bold; color: var(--primary-blue); }
+    /* Live Data Box */
+    .live-data {
+      font-size: 2.2em;
+      font-weight: bold;
+      color: var(--primary-blue);
+      margin: 10px 0;
+      padding: 16px;
+      border: 2px dashed #ccc;
+      border-radius: 10px;
+      text-align: center;
+      background-color: #f9fbfd;
+      transition: all 0.3s;
+    }
+    .live-data.alert {
+      border-color: var(--alert-red);
+      color: var(--alert-red);
+      background-color: #fdeceb;
+      animation: pulse 1s infinite alternate;
+    }
 
-    /* Google Sheets & Buttons */
-    .iframe-container { width: 100%; height: 380px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; margin-bottom: 15px; }
+    @keyframes pulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.02); }
+    }
+
+    /* Turn Countdown Display */
+    .timer-container {
+      background-color: #eef6fa;
+      border: 1px solid #cce4f2;
+      border-radius: 8px;
+      padding: 12px 18px;
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .timer-label { font-size: 0.9em; font-weight: 600; color: var(--primary-blue); }
+    .timer-value { font-size: 1.3em; font-weight: bold; color: var(--accent-blue); font-family: monospace; }
+    .timer-value.urgent { color: var(--alert-red); }
+
+    /* Scrollable Past Positions Timeline */
+    .history-title {
+      font-size: 0.95em;
+      font-weight: 700;
+      color: var(--primary-blue);
+      margin-top: 18px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .history-container {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background-color: #fafbfc;
+      max-height: 190px;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    /* Custom scrollbar */
+    .history-container::-webkit-scrollbar { width: 6px; }
+    .history-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+    .history-item {
+      background: white;
+      border-left: 4px solid var(--accent-blue);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.88em;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .history-pos { font-weight: bold; color: var(--primary-blue); }
+    .history-duration { color: #555; background: #f1f5f9; padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 0.82em; }
+    .history-time { font-size: 0.78em; color: var(--text-muted); }
+
+    /* Google Sheets Frame & Button */
+    .iframe-container {
+      width: 100%;
+      height: 440px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 15px;
+    }
     iframe { width: 100%; height: 100%; border: none; }
-    
-    .btn { width: 100%; padding: 14px; border: none; border-radius: 6px; font-size: 1.1em; font-weight: bold; cursor: pointer; transition: 0.2s; text-align: center; text-decoration: none; color: white; background-color: var(--primary-blue); display: block; }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 6px;
+      font-size: 1.05em;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+      text-align: center;
+      text-decoration: none;
+      color: white;
+      background-color: var(--primary-blue);
+      display: block;
+    }
     .btn:hover { background-color: #082942; }
 
-    /* Print Formatting */
     @media print {
-      .btn { display: none; }
+      .btn, .navbar { display: none; }
       body { background-color: white; }
       .card { box-shadow: none; border: 1px solid #ccc; }
     }
@@ -52,77 +197,214 @@
 <body>
 
   <header class="navbar">
-    <h1>✚ PKS Advanced Care | IoT Pressure Injury Prevention Systems</h1>
+    <h1>✚ PKS Advanced Care | Patient Telemetry Systems</h1>
     <div class="clock" id="liveClock">00:00:00</div>
   </header>
 
   <div class="container">
     
-    <!-- LEFT COLUMN: Live Monitor & Last Position -->
+    <!-- LEFT COLUMN: Live Telemetry, 30s Countdown, & Scrollable History -->
     <div class="card">
-      <h2>Live Patient Orientation Monitor</h2>
+      <h2>Patient Telemetry & Motion Log</h2>
       
-      <div style="text-align: center; margin-top: 10px;">
-        <span class="status-badge" id="systemStatus">🟢 Sensor Connected</span>
+      <div style="text-align: center;">
+        <span class="status-badge" id="systemStatus">⚪ Checking Sensor...</span>
         
-        <p style="color: var(--text-muted); margin-top: 10px; font-size: 0.95em;">Current Physical Orientation:</p>
-        <div class="live-data" id="postureData">Waiting...</div>
-        
-        <!-- NEW: Last Recorded Position View -->
-        <div class="history-box">
-          <span class="history-label">Previous Orientation:</span>
-          <span class="history-value" id="lastPostureData">None recorded</span>
-        </div>
-
-        <p style="font-size: 0.8em; color: var(--text-muted); margin-top: 20px;">Powered by Seeed XIAO ESP32C3 & MPU6050 IoT Edge Computing</p>
+        <p style="color: var(--text-muted); font-size: 0.9em; margin-top: 5px;">Current Detected Posture:</p>
+        <div class="live-data" id="postureData">Awaiting Data...</div>
       </div>
+
+      <!-- 30-Second Turn Countdown -->
+      <div class="timer-container">
+        <div>
+          <span class="timer-label">⏱️ Turn Due Countdown (30s):</span>
+          <div style="font-size: 0.75em; color: var(--text-muted);">Auto-resets on detected position turn</div>
+        </div>
+        <div class="timer-value" id="turnTimer">00:30</div>
+      </div>
+
+      <!-- Scrollable Recorded Past Positions -->
+      <div class="history-title">
+        <span>📋 Recorded Posture History:</span>
+        <span style="font-size: 0.8em; color: var(--text-muted); font-weight: normal;">Newest First</span>
+      </div>
+      <div class="history-container" id="historyLog">
+        <div style="text-align: center; color: #999; padding: 20px 0; font-size: 0.85em;" id="emptyLogMsg">
+          No previous turns recorded in this session.
+        </div>
+      </div>
+
+      <p style="font-size: 0.78em; color: var(--text-muted); margin-top: 15px; text-align: center;">
+        Edge Telemetry powered by Seeed XIAO ESP32C3 & MPU6050
+      </p>
     </div>
 
-    <!-- RIGHT COLUMN: Google Sheets Preview & Open Link -->
-    <div class="card" style="flex: 2; min-width: 500px;">
+    <!-- RIGHT COLUMN: Embedded Compliance Chart & Print Link -->
+    <div class="card" style="flex: 2; min-width: 480px;">
       <h2>Repositioning Chart Compliance Log</h2>
       
       <div class="iframe-container">
         <iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vQRfFZxyRMc_Y1nPDCFobnDk8ifKDj3yBx6sWq7Sq-Sw9ZdAEVGzhHd8DhsaZVySW50d_ZFQxYUdYX1/pubhtml?widget=true&amp;headers=false"></iframe>
       </div>
 
-      <a href="https://docs.google.com/spreadsheets/d/1KJx8Y5J1BhbirhAeJthv6a9PSitOkcAE6iouC1NWqHY/edit?usp=sharing" target="_blank" class="btn">🖨️ Open Sheet for Print / Sign</a>
+      <a href="https://docs.google.com/spreadsheets/d/1KJx8Y5J1BhbirhAeJthv6a9PSitOkcAE6iouC1NWqHY/edit?usp=sharing" target="_blank" class="btn">
+        🖨️ Open Sheet for Print / Sign
+      </a>
     </div>
 
   </div>
 
   <script>
     // 1. LIVE CLOCK
-    setInterval(() => document.getElementById('liveClock').innerText = new Date().toLocaleTimeString(), 1000);
+    setInterval(() => {
+      document.getElementById('liveClock').innerText = new Date().toLocaleTimeString();
+    }, 1000);
 
-    // 2. FIREBASE IOT FETCH & HISTORY TRACKING
+    // ================= CONFIGURATION =================
+    const TURN_INTERVAL_SECONDS = 30; // Configured for your 30s test duration!
     const firebaseUrl = "https://patientmonitor-4bc41-default-rtdb.asia-southeast1.firebasedatabase.app/Position.json?auth=BCfmlBnWlgX7cNgWvh0Ho0haxfTLPlFgp99MYom1";
-    
-    let previousPosition = "";
 
-    function fetchLiveData() {
-      fetch(firebaseUrl).then(r => r.json()).then(data => {
-        const p = document.getElementById("postureData");
-        const lastP = document.getElementById("lastPostureData");
+    let currentPosition = "";
+    let positionStartTime = Date.now();
+    let secondsRemaining = TURN_INTERVAL_SECONDS;
+    let timerInterval = null;
+    let historyEntries = [];
 
-        if(data) {
-          // If the position changes, update the history box before changing the live display
-          if (previousPosition !== "" && previousPosition !== data) {
-            lastP.innerText = previousPosition;
-          }
-          
-          p.innerText = data;
-          previousPosition = data; // Keep track of current state
+    // Helper: Format elapsed duration (seconds -> readable string)
+    function formatDuration(seconds) {
+      if (seconds < 60) return `${seconds}s`;
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}m ${secs}s`;
+    }
 
-          data.includes("Prone") ? p.classList.add("alert") : p.classList.remove("alert");
-        }
-      }).catch(e => {
-        document.getElementById("systemStatus").innerText = "🔴 Connection Lost";
-        document.getElementById("systemStatus").style.color = "red";
+    // Helper: Add completed posture to the scrollable menu
+    function logPositionHistory(position, durationSecs) {
+      const emptyMsg = document.getElementById("emptyLogMsg");
+      if (emptyMsg) emptyMsg.remove();
+
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      const item = {
+        position: position,
+        duration: formatDuration(durationSecs),
+        time: timeStr
+      };
+
+      historyEntries.unshift(item); // Add newest to top
+
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const logContainer = document.getElementById("historyLog");
+      logContainer.innerHTML = "";
+
+      historyEntries.forEach(entry => {
+        const row = document.createElement("div");
+        row.className = "history-item";
+        row.innerHTML = `
+          <div>
+            <span class="history-pos">${entry.position}</span>
+            <div class="history-time">Recorded at ${entry.time}</div>
+          </div>
+          <span class="history-duration">Held: ${entry.duration}</span>
+        `;
+        logContainer.appendChild(row);
       });
     }
-    
-    fetchLiveData(); 
+
+    // 2. TURN COUNTDOWN TIMER LOGIC
+    function resetTurnTimer() {
+      secondsRemaining = TURN_INTERVAL_SECONDS;
+      positionStartTime = Date.now();
+      updateTimerDisplay();
+
+      if (timerInterval) clearInterval(timerInterval);
+
+      timerInterval = setInterval(() => {
+        if (secondsRemaining > 0) {
+          secondsRemaining--;
+          updateTimerDisplay();
+        } else {
+          // Timer reached zero (Overdue)
+          const timerDisplay = document.getElementById("turnTimer");
+          timerDisplay.innerText = "OVERDUE!";
+          timerDisplay.classList.add("urgent");
+          document.getElementById("postureData").classList.add("alert");
+        }
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const timerDisplay = document.getElementById("turnTimer");
+      const mins = String(Math.floor(secondsRemaining / 60)).padStart(2, '0');
+      const secs = String(secondsRemaining % 60).padStart(2, '0');
+      timerDisplay.innerText = `${mins}:${secs}`;
+
+      if (secondsRemaining <= 10) {
+        timerDisplay.classList.add("urgent");
+      } else {
+        timerDisplay.classList.remove("urgent");
+      }
+    }
+
+    // 3. FIREBASE FETCHER & SMART CONNECTION CHECK
+    let failedAttempts = 0;
+
+    function fetchLiveData() {
+      fetch(firebaseUrl)
+        .then(response => {
+          if (!response.ok) throw new Error("Network error");
+          return response.json();
+        })
+        .then(data => {
+          const postureEl = document.getElementById("postureData");
+          const statusEl = document.getElementById("systemStatus");
+
+          if (data && data !== "null" && data !== "") {
+            failedAttempts = 0;
+            statusEl.innerText = "🟢 Sensor Connected & Active";
+            statusEl.className = "status-badge connected";
+
+            // If the patient has just turned to a different position!
+            if (currentPosition !== "" && currentPosition !== data) {
+              const elapsedSecs = Math.round((Date.now() - positionStartTime) / 1000);
+              logPositionHistory(currentPosition, elapsedSecs);
+              resetTurnTimer();
+            } else if (currentPosition === "") {
+              // First reading on page load
+              resetTurnTimer();
+            }
+
+            currentPosition = data;
+            postureEl.innerText = data;
+
+            if (data.toLowerCase().includes("prone")) {
+              postureEl.classList.add("alert");
+            } else if (secondsRemaining > 0) {
+              postureEl.classList.remove("alert");
+            }
+          } else {
+            handleDisconnected();
+          }
+        })
+        .catch(err => {
+          failedAttempts++;
+          if (failedAttempts >= 2) {
+            handleDisconnected();
+          }
+        });
+    }
+
+    function handleDisconnected() {
+      const statusEl = document.getElementById("systemStatus");
+      statusEl.innerText = "🔴 Sensor Offline / Unreachable";
+      statusEl.className = "status-badge";
+    }
+
+    // Start fetching every 2 seconds
+    fetchLiveData();
     setInterval(fetchLiveData, 2000);
   </script>
 </body>
