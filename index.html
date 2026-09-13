@@ -120,15 +120,30 @@
     .timer-value.urgent { color: var(--alert-red); }
 
     /* Scrollable Past Positions Timeline */
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 18px;
+      margin-bottom: 8px;
+    }
     .history-title {
       font-size: 0.95em;
       font-weight: 700;
       color: var(--primary-blue);
-      margin-top: 18px;
-      margin-bottom: 8px;
-      display: flex;
-      justify-content: space-between;
     }
+    .btn-clear-history {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.75em;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    .btn-clear-history:hover {
+      color: var(--alert-red);
+    }
+
     .history-container {
       border: 1px solid #e2e8f0;
       border-radius: 8px;
@@ -140,7 +155,6 @@
       flex-direction: column;
       gap: 6px;
     }
-    /* Custom scrollbar */
     .history-container::-webkit-scrollbar { width: 6px; }
     .history-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 
@@ -188,7 +202,7 @@
     .btn:hover { background-color: #082942; }
 
     @media print {
-      .btn, .navbar { display: none; }
+      .btn, .navbar, .btn-clear-history { display: none; }
       body { background-color: white; }
       .card { box-shadow: none; border: 1px solid #ccc; }
     }
@@ -203,7 +217,7 @@
 
   <div class="container">
     
-    <!-- LEFT COLUMN: Live Telemetry, 30s Countdown, & Scrollable History -->
+    <!-- LEFT COLUMN: Live Telemetry, Persistent 30s Countdown, & Scrollable History -->
     <div class="card">
       <h2>Patient Telemetry & Motion Log</h2>
       
@@ -214,23 +228,23 @@
         <div class="live-data" id="postureData">Awaiting Data...</div>
       </div>
 
-      <!-- 30-Second Turn Countdown -->
+      <!-- 30-Second Turn Countdown (Persists across reloads) -->
       <div class="timer-container">
         <div>
           <span class="timer-label">⏱️ Turn Due Countdown (30s):</span>
-          <div style="font-size: 0.75em; color: var(--text-muted);">Auto-resets on detected position turn</div>
+          <div style="font-size: 0.75em; color: var(--text-muted);">Synced to actual elapsed duration</div>
         </div>
         <div class="timer-value" id="turnTimer">00:30</div>
       </div>
 
       <!-- Scrollable Recorded Past Positions -->
-      <div class="history-title">
-        <span>📋 Recorded Posture History:</span>
-        <span style="font-size: 0.8em; color: var(--text-muted); font-weight: normal;">Newest First</span>
+      <div class="history-header">
+        <span class="history-title">📋 Recorded Posture History:</span>
+        <button class="btn-clear-history" onclick="clearHistoryLog()" title="Clear cached log history">Clear History</button>
       </div>
       <div class="history-container" id="historyLog">
         <div style="text-align: center; color: #999; padding: 20px 0; font-size: 0.85em;" id="emptyLogMsg">
-          No previous turns recorded in this session.
+          No previous turns recorded yet.
         </div>
       </div>
 
@@ -261,14 +275,22 @@
     }, 1000);
 
     // ================= CONFIGURATION =================
-    const TURN_INTERVAL_SECONDS = 30; // Configured for your 30s test duration!
+    const TURN_INTERVAL_SECONDS = 30; // 30s test duration
     const firebaseUrl = "https://patientmonitor-4bc41-default-rtdb.asia-southeast1.firebasedatabase.app/Position.json?auth=BCfmlBnWlgX7cNgWvh0Ho0haxfTLPlFgp99MYom1";
 
-    let currentPosition = "";
-    let positionStartTime = Date.now();
-    let secondsRemaining = TURN_INTERVAL_SECONDS;
-    let timerInterval = null;
+    // 2. PERSISTENCE LAYER: RESTORE FROM LOCALSTORAGE
+    let currentPosition = localStorage.getItem("pm_current_position") || "";
+    let positionStartTime = parseInt(localStorage.getItem("pm_position_start_time")) || 0;
     let historyEntries = [];
+
+    try {
+      const savedHistory = localStorage.getItem("pm_history_log");
+      if (savedHistory) {
+        historyEntries = JSON.parse(savedHistory);
+      }
+    } catch (e) {
+      historyEntries = [];
+    }
 
     // Helper: Format elapsed duration (seconds -> readable string)
     function formatDuration(seconds) {
@@ -278,28 +300,18 @@
       return `${mins}m ${secs}s`;
     }
 
-    // Helper: Add completed posture to the scrollable menu
-    function logPositionHistory(position, durationSecs) {
-      const emptyMsg = document.getElementById("emptyLogMsg");
-      if (emptyMsg) emptyMsg.remove();
-
-      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-      const item = {
-        position: position,
-        duration: formatDuration(durationSecs),
-        time: timeStr
-      };
-
-      historyEntries.unshift(item); // Add newest to top
-
-      renderHistory();
-    }
-
+    // Helper: Render the scrollable history box
     function renderHistory() {
       const logContainer = document.getElementById("historyLog");
-      logContainer.innerHTML = "";
+      if (historyEntries.length === 0) {
+        logContainer.innerHTML = `
+          <div style="text-align: center; color: #999; padding: 20px 0; font-size: 0.85em;" id="emptyLogMsg">
+            No previous turns recorded yet.
+          </div>`;
+        return;
+      }
 
+      logContainer.innerHTML = "";
       historyEntries.forEach(entry => {
         const row = document.createElement("div");
         row.className = "history-item";
@@ -314,42 +326,85 @@
       });
     }
 
-    // 2. TURN COUNTDOWN TIMER LOGIC
-    function resetTurnTimer() {
-      secondsRemaining = TURN_INTERVAL_SECONDS;
-      positionStartTime = Date.now();
-      updateTimerDisplay();
+    function logPositionHistory(position, durationSecs) {
+      if (!position || position === "Transitioning..." || position === "Waiting...") return;
 
-      if (timerInterval) clearInterval(timerInterval);
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const item = {
+        position: position,
+        duration: formatDuration(durationSecs),
+        time: timeStr
+      };
 
-      timerInterval = setInterval(() => {
-        if (secondsRemaining > 0) {
-          secondsRemaining--;
-          updateTimerDisplay();
-        } else {
-          // Timer reached zero (Overdue)
-          const timerDisplay = document.getElementById("turnTimer");
-          timerDisplay.innerText = "OVERDUE!";
-          timerDisplay.classList.add("urgent");
-          document.getElementById("postureData").classList.add("alert");
-        }
-      }, 1000);
+      historyEntries.unshift(item); // Newest on top
+      if (historyEntries.length > 50) historyEntries.pop(); // Keep last 50
+
+      localStorage.setItem("pm_history_log", JSON.stringify(historyEntries));
+      renderHistory();
     }
 
-    function updateTimerDisplay() {
-      const timerDisplay = document.getElementById("turnTimer");
-      const mins = String(Math.floor(secondsRemaining / 60)).padStart(2, '0');
-      const secs = String(secondsRemaining % 60).padStart(2, '0');
-      timerDisplay.innerText = `${mins}:${secs}`;
-
-      if (secondsRemaining <= 10) {
-        timerDisplay.classList.add("urgent");
-      } else {
-        timerDisplay.classList.remove("urgent");
+    function clearHistoryLog() {
+      if (confirm("Clear local posture history?")) {
+        historyEntries = [];
+        localStorage.removeItem("pm_history_log");
+        renderHistory();
       }
     }
 
-    // 3. FIREBASE FETCHER & SMART CONNECTION CHECK
+    // Initial render of cached history on page load
+    renderHistory();
+
+    // If we already know the current position from localStorage, show it immediately!
+    if (currentPosition) {
+      document.getElementById("postureData").innerText = currentPosition;
+    }
+
+    // 3. WALL-CLOCK SYNCHRONIZED COUNTDOWN TIMER
+    let timerInterval = null;
+
+    function runTimerTick() {
+      if (!positionStartTime) return;
+
+      const elapsedSeconds = Math.floor((Date.now() - positionStartTime) / 1000);
+      const secondsRemaining = TURN_INTERVAL_SECONDS - elapsedSeconds;
+
+      const timerDisplay = document.getElementById("turnTimer");
+      const postureEl = document.getElementById("postureData");
+
+      if (secondsRemaining > 0) {
+        const mins = String(Math.floor(secondsRemaining / 60)).padStart(2, '0');
+        const secs = String(secondsRemaining % 60).padStart(2, '0');
+        timerDisplay.innerText = `${mins}:${secs}`;
+
+        if (secondsRemaining <= 10) {
+          timerDisplay.classList.add("urgent");
+        } else {
+          timerDisplay.classList.remove("urgent");
+        }
+
+        if (!currentPosition.toLowerCase().includes("prone")) {
+          postureEl.classList.remove("alert");
+        }
+      } else {
+        // OVERDUE
+        timerDisplay.innerText = "OVERDUE!";
+        timerDisplay.classList.add("urgent");
+        postureEl.classList.add("alert");
+      }
+    }
+
+    function startTimerMonitoring() {
+      if (timerInterval) clearInterval(timerInterval);
+      runTimerTick();
+      timerInterval = setInterval(runTimerTick, 1000);
+    }
+
+    // Start timer immediately if start time exists in localStorage
+    if (positionStartTime > 0) {
+      startTimerMonitoring();
+    }
+
+    // 4. FIREBASE TELEMETRY LISTENER & SMART CHANGE DETECTION
     let failedAttempts = 0;
 
     function fetchLiveData() {
@@ -367,23 +422,35 @@
             statusEl.innerText = "🟢 Sensor Connected & Active";
             statusEl.className = "status-badge connected";
 
-            // If the patient has just turned to a different position!
+            // If this is a genuine change in position:
             if (currentPosition !== "" && currentPosition !== data) {
-              const elapsedSecs = Math.round((Date.now() - positionStartTime) / 1000);
+              const elapsedSecs = Math.max(1, Math.round((Date.now() - positionStartTime) / 1000));
               logPositionHistory(currentPosition, elapsedSecs);
-              resetTurnTimer();
+
+              // Reset start time to now
+              positionStartTime = Date.now();
+              currentPosition = data;
+
+              // Save to localStorage
+              localStorage.setItem("pm_current_position", currentPosition);
+              localStorage.setItem("pm_position_start_time", positionStartTime.toString());
+
+              startTimerMonitoring();
             } else if (currentPosition === "") {
-              // First reading on page load
-              resetTurnTimer();
+              // Very first time opening the website
+              currentPosition = data;
+              positionStartTime = Date.now();
+
+              localStorage.setItem("pm_current_position", currentPosition);
+              localStorage.setItem("pm_position_start_time", positionStartTime.toString());
+
+              startTimerMonitoring();
             }
 
-            currentPosition = data;
             postureEl.innerText = data;
 
             if (data.toLowerCase().includes("prone")) {
               postureEl.classList.add("alert");
-            } else if (secondsRemaining > 0) {
-              postureEl.classList.remove("alert");
             }
           } else {
             handleDisconnected();
@@ -403,7 +470,7 @@
       statusEl.className = "status-badge";
     }
 
-    // Start fetching every 2 seconds
+    // Poll Firebase every 2 seconds
     fetchLiveData();
     setInterval(fetchLiveData, 2000);
   </script>
