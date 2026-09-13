@@ -77,6 +77,11 @@
       color: var(--safe-green);
       border-color: var(--safe-green);
     }
+    .status-badge.checking {
+      background-color: #eef6fa;
+      color: var(--accent-blue);
+      border-color: var(--accent-blue);
+    }
 
     /* Live Data Box */
     .live-data {
@@ -97,6 +102,11 @@
       background-color: #fdeceb;
       animation: pulse 1s infinite alternate;
     }
+    .live-data.offline {
+      color: #999;
+      border-color: #ddd;
+      background-color: #f5f5f5;
+    }
 
     @keyframes pulse {
       from { transform: scale(1); }
@@ -113,6 +123,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      transition: opacity 0.3s;
     }
     .timer-label { font-size: 0.9em; font-weight: 600; color: var(--primary-blue); }
     .timer-value { font-size: 1.3em; font-weight: bold; color: var(--accent-blue); font-family: monospace; }
@@ -131,6 +142,17 @@
       font-weight: 700;
       color: var(--primary-blue);
     }
+    .btn-clear {
+      background: none;
+      border: none;
+      color: var(--alert-red);
+      font-size: 0.75em;
+      font-weight: bold;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .btn-clear:hover { background: #fdeceb; }
 
     .history-container {
       border: 1px solid #e2e8f0;
@@ -158,7 +180,17 @@
       box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
     .history-pos { font-weight: bold; color: var(--primary-blue); }
-    .history-duration { color: #555; background: #f1f5f9; padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 0.82em; }
+    .history-duration { color: #555; background: #f1f5f9; padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 0.82em; margin-right: 10px; }
+    
+    .btn-delete {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #ccc;
+      font-size: 1.1em;
+      transition: 0.2s;
+    }
+    .btn-delete:hover { color: var(--alert-red); transform: scale(1.1); }
 
     /* Google Sheets Frame & Button */
     .iframe-container {
@@ -187,12 +219,6 @@
       display: block;
     }
     .btn:hover { background-color: #082942; }
-
-    @media print {
-      .btn, .navbar { display: none; }
-      body { background-color: white; }
-      .card { box-shadow: none; border: 1px solid #ccc; }
-    }
   </style>
 </head>
 <body>
@@ -209,28 +235,28 @@
       <h2>Patient Telemetry & Motion Log</h2>
       
       <div style="text-align: center;">
-        <span class="status-badge" id="systemStatus">⚪ Connecting to Cloud...</span>
+        <span class="status-badge checking" id="systemStatus">⚪ Checking Sensor Sync...</span>
         
         <p style="color: var(--text-muted); font-size: 0.9em; margin-top: 5px;">Current Detected Posture:</p>
-        <div class="live-data" id="postureData">Awaiting Data...</div>
+        <div class="live-data offline" id="postureData">Device Off</div>
       </div>
 
       <!-- 30-Second Turn Countdown -->
-      <div class="timer-container">
+      <div class="timer-container" id="timerContainer" style="opacity: 0.4;">
         <div>
           <span class="timer-label">⏱️ Turn Due Countdown (30s):</span>
           <div style="font-size: 0.75em; color: var(--text-muted);">Cloud-synchronized across all devices</div>
         </div>
-        <div class="timer-value" id="turnTimer">00:30</div>
+        <div class="timer-value" id="turnTimer">--:--</div>
       </div>
 
       <!-- Scrollable Recorded Past Positions -->
       <div class="history-header">
         <span class="history-title">📋 Cloud Posture History:</span>
-        <span style="font-size: 0.78em; color: var(--text-muted);">Live Sync</span>
+        <button class="btn-clear" onclick="clearAllHistory()">Clear All 🗑️</button>
       </div>
       <div class="history-container" id="historyLog">
-        <div style="text-align: center; color: #999; padding: 20px 0; font-size: 0.85em;" id="emptyLogMsg">
+        <div style="text-align: center; color: #999; padding: 20px 0; font-size: 0.85em;">
           No turn records in cloud yet.
         </div>
       </div>
@@ -267,30 +293,53 @@
     const AUTH_KEY = "BCfmlBnWlgX7cNgWvh0Ho0haxfTLPlFgp99MYom1";
 
     let lastHeartbeatValue = null;
-    let lastHeartbeatChangeTime = Date.now();
-    let turnStartTimeClient = Date.now();
+    let lastHeartbeatChangeTime = 0;
+    let isDeviceOnline = false;
+
+    // To allow smooth local ticking between cloud fetches
+    let localSyncOffset = 0; 
     let activePosition = "";
 
-    // 2. COUNTDOWN TIMER TICK
+    // 2. SMOOTH LOCAL COUNTDOWN TIMER TICK
     function updateCountdown() {
-      const elapsed = Math.floor((Date.now() - turnStartTimeClient) / 1000);
-      const remaining = TURN_INTERVAL_SECONDS - elapsed;
       const timerDisplay = document.getElementById("turnTimer");
       const postureEl = document.getElementById("postureData");
+      const timerBox = document.getElementById("timerContainer");
+
+      if (!isDeviceOnline) {
+        // If offline, turn off timer completely
+        timerDisplay.innerText = "--:--";
+        timerDisplay.classList.remove("urgent");
+        timerBox.style.opacity = "0.4";
+        
+        postureEl.innerText = "Device Off";
+        postureEl.className = "live-data offline";
+        return;
+      }
+
+      // If online, calculate elapsed time based on ESP32's synchronized clock
+      timerBox.style.opacity = "1";
+      const elapsed = Math.floor((Date.now() - localSyncOffset) / 1000);
+      const remaining = TURN_INTERVAL_SECONDS - elapsed;
 
       if (remaining > 0) {
         const mins = String(Math.floor(remaining / 60)).padStart(2, '0');
         const secs = String(remaining % 60).padStart(2, '0');
         timerDisplay.innerText = `${mins}:${secs}`;
+        
         if (remaining <= 10) timerDisplay.classList.add("urgent");
         else timerDisplay.classList.remove("urgent");
-        if (!activePosition.toLowerCase().includes("prone")) postureEl.classList.remove("alert");
+        
+        if (!activePosition.toLowerCase().includes("prone")) {
+          postureEl.classList.remove("alert");
+        }
       } else {
         timerDisplay.innerText = "OVERDUE!";
         timerDisplay.classList.add("urgent");
         postureEl.classList.add("alert");
       }
     }
+    // Update the visual timer every second
     setInterval(updateCountdown, 1000);
 
     // 3. FETCH FULL ROOT TELEMETRY FROM FIREBASE
@@ -303,72 +352,102 @@
           const statusEl = document.getElementById("systemStatus");
           const postureEl = document.getElementById("postureData");
 
-          // --- SENSOR ONLINE CHECK (Via Heartbeat) ---
+          // --- SMART SENSOR ONLINE/OFFLINE DETECTION ---
           if (data.Heartbeat !== undefined) {
-            if (data.Heartbeat !== lastHeartbeatValue) {
+            if (lastHeartbeatValue === null) {
+              // Initial load: don't trust it immediately, wait to see if it ticks
+              lastHeartbeatValue = data.Heartbeat;
+              lastHeartbeatChangeTime = Date.now() - 10000; // Force it to act old until it ticks
+            } else if (data.Heartbeat !== lastHeartbeatValue) {
+              // The ESP32 is actively updating the database!
               lastHeartbeatValue = data.Heartbeat;
               lastHeartbeatChangeTime = Date.now();
+              isDeviceOnline = true;
             }
           }
 
-          // If no new heartbeat received in last 8 seconds, mark as offline
-          const isAlive = (Date.now() - lastHeartbeatChangeTime) < 8000;
-          if (isAlive) {
-            statusEl.innerText = "🟢 Sensor Connected & Active";
-            statusEl.className = "status-badge connected";
-          } else {
+          // If no new heartbeat received in last 7 seconds, it's definitively offline
+          if (Date.now() - lastHeartbeatChangeTime > 7000) {
+            isDeviceOnline = false;
             statusEl.innerText = "🔴 Sensor Offline / Disconnected";
             statusEl.className = "status-badge";
+          } else {
+            isDeviceOnline = true;
+            statusEl.innerText = "🟢 Sensor Connected & Active";
+            statusEl.className = "status-badge connected";
           }
 
           // --- POSITION & CLOUD TIMER SYNC ---
-          if (data.Position) {
-            if (data.Position !== activePosition) {
-              activePosition = data.Position;
-              turnStartTimeClient = Date.now(); // Sync countdown on new turn
-            }
-            postureEl.innerText = data.Position;
-            if (data.Position.toLowerCase().includes("prone")) {
+          if (isDeviceOnline && data.Position) {
+            activePosition = data.Position;
+            postureEl.innerText = activePosition;
+            postureEl.classList.remove("offline");
+            
+            if (activePosition.toLowerCase().includes("prone")) {
               postureEl.classList.add("alert");
             }
+
+            // Sync the local smooth timer with the exact ESP32 hardware stopwatch
+            const espUptime = data.Heartbeat || 0;
+            const espTurnTime = data.LastTurnTimestamp || 0;
+            const trueElapsedSeconds = espUptime - espTurnTime;
+            
+            localSyncOffset = Date.now() - (trueElapsedSeconds * 1000);
           }
 
           // --- CLOUD HISTORY LIST SYNC ---
           if (data.History) {
             renderCloudHistory(data.History);
+          } else {
+            document.getElementById("historyLog").innerHTML = `<div style="text-align:center; color:#999; padding:20px 0; font-size:0.85em;">No turn records in cloud yet.</div>`;
           }
         })
         .catch(err => {
-          const statusEl = document.getElementById("systemStatus");
-          statusEl.innerText = "🔴 Cloud Connection Error";
-          statusEl.className = "status-badge";
+          document.getElementById("systemStatus").innerText = "🔴 Cloud Connection Error";
+          document.getElementById("systemStatus").className = "status-badge";
+          isDeviceOnline = false;
         });
     }
 
+    // 4. RENDER AND DELETE CLOUD HISTORY
     function renderCloudHistory(historyObj) {
       const container = document.getElementById("historyLog");
       container.innerHTML = "";
 
-      // Convert Firebase Push Object into an array and reverse (newest first)
-      const items = Object.values(historyObj).reverse();
+      // Convert Firebase Push Object into an array: [[key1, obj1], [key2, obj2]] and reverse to show newest first
+      const items = Object.entries(historyObj).reverse();
 
-      if (items.length === 0) {
-        container.innerHTML = `<div style="text-align:center; color:#999; padding:20px 0; font-size:0.85em;">No turn records in cloud yet.</div>`;
-        return;
-      }
-
-      items.slice(0, 30).forEach(item => {
+      items.slice(0, 30).forEach(([key, item]) => {
         const div = document.createElement("div");
         div.className = "history-item";
         div.innerHTML = `
-          <span class="history-pos">${item.position || "Unknown"}</span>
-          <span class="history-duration">Held: ${item.duration || "N/A"}</span>
+          <div style="flex: 1;">
+            <span class="history-pos">${item.position || "Unknown"}</span>
+            <span class="history-duration">Held: ${item.duration || "N/A"}</span>
+          </div>
+          <button class="btn-delete" onclick="deleteHistoryItem('${key}')" title="Delete this record">🗑️</button>
         `;
         container.appendChild(div);
       });
     }
 
-    // Sync cloud every 1.5 seconds
+    function deleteHistoryItem(firebaseKey) {
+      if (confirm("Delete this single position record from the cloud?")) {
+        fetch(`${BASE_DB_URL}/History/${firebaseKey}.json?auth=${AUTH_KEY}`, {
+          method: 'DELETE'
+        }).then(() => syncCloudData()); // Instantly re-fetch data
+      }
+    }
+
+    function clearAllHistory() {
+      if (confirm("⚠️ Are you sure you want to delete ALL posture history? This will remove it for ALL users and devices.")) {
+        fetch(`${BASE_DB_URL}/History.json?auth=${AUTH_KEY}`, {
+          method: 'DELETE'
+        }).then(() => syncCloudData()); // Instantly re-fetch data
+      }
+    }
+
+    // Start cloud polling every 1.5 seconds
     syncCloudData();
     setInterval(syncCloudData, 1500);
   </script>
