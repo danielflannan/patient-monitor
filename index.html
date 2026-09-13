@@ -10,6 +10,7 @@
       --accent-blue: #328cc1;
       --alert-red: #d9534f;
       --safe-green: #5cb85c;
+      --warning-orange: #f0ad4e;
       --bg-color: #f4f7f6;
       --card-bg: #ffffff;
       --text-main: #333333;
@@ -18,206 +19,48 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
     body { background-color: var(--bg-color); color: var(--text-main); }
 
-    /* Top Navigation Bar */
-    .navbar {
-      background-color: var(--primary-blue);
-      color: white;
-      padding: 15px 30px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
+    .navbar { background-color: var(--primary-blue); color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
     .navbar h1 { font-size: 1.35em; font-weight: 600; }
     .clock { font-size: 1.1em; font-weight: 500; color: #a8d0e6; }
 
-    /* Layout */
-    .container {
-      display: flex;
-      flex-wrap: wrap;
-      padding: 25px;
-      gap: 25px;
-      max-width: 1450px;
-      margin: 0 auto;
-    }
-    .card {
-      background-color: var(--card-bg);
-      border-radius: 12px;
-      box-shadow: 0 6px 15px rgba(0,0,0,0.05);
-      padding: 22px;
-      flex: 1;
-      min-width: 360px;
-      border-top: 5px solid var(--accent-blue);
-      display: flex;
-      flex-direction: column;
-    }
-    .card h2 {
-      color: var(--primary-blue);
-      font-size: 1.25em;
-      margin-bottom: 15px;
-      border-bottom: 1px solid #eee;
-      padding-bottom: 10px;
-    }
+    .container { display: flex; flex-wrap: wrap; padding: 25px; gap: 25px; max-width: 1450px; margin: 0 auto; }
+    .card { background-color: var(--card-bg); border-radius: 12px; box-shadow: 0 6px 15px rgba(0,0,0,0.05); padding: 22px; flex: 1; min-width: 360px; border-top: 5px solid var(--accent-blue); display: flex; flex-direction: column; }
+    .card h2 { color: var(--primary-blue); font-size: 1.25em; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
 
-    /* Sensor Status Badge */
-    .status-badge {
-      display: inline-block;
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-weight: bold;
-      font-size: 0.85em;
-      background-color: #fbeae8;
-      color: var(--alert-red);
-      border: 1px solid var(--alert-red);
-      margin-bottom: 12px;
-      transition: all 0.3s ease;
-    }
-    .status-badge.connected {
-      background-color: #e8f5e9;
-      color: var(--safe-green);
-      border-color: var(--safe-green);
-    }
-    .status-badge.checking {
-      background-color: #eef6fa;
-      color: var(--accent-blue);
-      border-color: var(--accent-blue);
-    }
+    .status-badge { display: inline-block; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 0.85em; background-color: #fbeae8; color: var(--alert-red); border: 1px solid var(--alert-red); margin-bottom: 12px; transition: all 0.3s ease; }
+    .status-badge.connected { background-color: #e8f5e9; color: var(--safe-green); border-color: var(--safe-green); }
+    .status-badge.checking { background-color: #eef6fa; color: var(--accent-blue); border-color: var(--accent-blue); }
 
-    /* Live Data Box */
-    .live-data {
-      font-size: 2.2em;
-      font-weight: bold;
-      color: var(--primary-blue);
-      margin: 10px 0;
-      padding: 16px;
-      border: 2px dashed #ccc;
-      border-radius: 10px;
-      text-align: center;
-      background-color: #f9fbfd;
-      transition: all 0.3s;
-    }
-    .live-data.alert {
-      border-color: var(--alert-red);
-      color: var(--alert-red);
-      background-color: #fdeceb;
-      animation: pulse 1s infinite alternate;
-    }
-    .live-data.offline {
-      color: #999;
-      border-color: #ddd;
-      background-color: #f5f5f5;
-    }
+    .live-data { font-size: 2.2em; font-weight: bold; color: var(--primary-blue); margin: 10px 0; padding: 16px; border: 2px dashed #ccc; border-radius: 10px; text-align: center; background-color: #f9fbfd; transition: all 0.3s; }
+    .live-data.alert { border-color: var(--alert-red); color: var(--alert-red); background-color: #fdeceb; animation: pulse 1s infinite alternate; }
+    .live-data.offline { color: #999; border-color: #ddd; background-color: #f5f5f5; }
 
-    @keyframes pulse {
-      from { transform: scale(1); }
-      to { transform: scale(1.02); }
-    }
+    @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.02); } }
 
-    /* Turn Countdown Display */
-    .timer-container {
-      background-color: #eef6fa;
-      border: 1px solid #cce4f2;
-      border-radius: 8px;
-      padding: 12px 18px;
-      margin-top: 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      transition: opacity 0.3s;
-    }
+    .timer-container { background-color: #eef6fa; border: 1px solid #cce4f2; border-radius: 8px; padding: 12px 18px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; transition: opacity 0.3s; }
     .timer-label { font-size: 0.9em; font-weight: 600; color: var(--primary-blue); }
     .timer-value { font-size: 1.3em; font-weight: bold; color: var(--accent-blue); font-family: monospace; }
     .timer-value.urgent { color: var(--alert-red); }
+    .timer-value.frozen { color: var(--warning-orange); font-size: 1.1em; }
 
-    /* Scrollable History Timeline */
-    .history-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 18px;
-      margin-bottom: 8px;
-    }
-    .history-title {
-      font-size: 0.95em;
-      font-weight: 700;
-      color: var(--primary-blue);
-    }
-    .btn-clear {
-      background: none;
-      border: none;
-      color: var(--alert-red);
-      font-size: 0.75em;
-      font-weight: bold;
-      cursor: pointer;
-      padding: 4px 8px;
-      border-radius: 4px;
-    }
+    .history-header { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; margin-bottom: 8px; }
+    .history-title { font-size: 0.95em; font-weight: 700; color: var(--primary-blue); }
+    .btn-clear { background: none; border: none; color: var(--alert-red); font-size: 0.75em; font-weight: bold; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
     .btn-clear:hover { background: #fdeceb; }
 
-    .history-container {
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      background-color: #fafbfc;
-      max-height: 190px;
-      overflow-y: auto;
-      padding: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
+    .history-container { border: 1px solid #e2e8f0; border-radius: 8px; background-color: #fafbfc; max-height: 190px; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
     .history-container::-webkit-scrollbar { width: 6px; }
     .history-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 
-    .history-item {
-      background: white;
-      border-left: 4px solid var(--accent-blue);
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 0.88em;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    }
+    .history-item { background: white; border-left: 4px solid var(--accent-blue); padding: 8px 12px; border-radius: 6px; font-size: 0.88em; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
     .history-pos { font-weight: bold; color: var(--primary-blue); }
     .history-duration { color: #555; background: #f1f5f9; padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 0.82em; margin-right: 10px; }
-    
-    .btn-delete {
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: #ccc;
-      font-size: 1.1em;
-      transition: 0.2s;
-    }
+    .btn-delete { background: none; border: none; cursor: pointer; color: #ccc; font-size: 1.1em; transition: 0.2s; }
     .btn-delete:hover { color: var(--alert-red); transform: scale(1.1); }
 
-    /* Google Sheets Frame & Button */
-    .iframe-container {
-      width: 100%;
-      height: 440px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      overflow: hidden;
-      margin-bottom: 15px;
-    }
+    .iframe-container { width: 100%; height: 440px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; margin-bottom: 15px; }
     iframe { width: 100%; height: 100%; border: none; }
-
-    .btn {
-      width: 100%;
-      padding: 14px;
-      border: none;
-      border-radius: 6px;
-      font-size: 1.05em;
-      font-weight: bold;
-      cursor: pointer;
-      transition: 0.2s;
-      text-align: center;
-      text-decoration: none;
-      color: white;
-      background-color: var(--primary-blue);
-      display: block;
-    }
+    .btn { width: 100%; padding: 14px; border: none; border-radius: 6px; font-size: 1.05em; font-weight: bold; cursor: pointer; transition: 0.2s; text-align: center; text-decoration: none; color: white; background-color: var(--primary-blue); display: block; }
     .btn:hover { background-color: #082942; }
   </style>
 </head>
@@ -229,66 +72,46 @@
   </header>
 
   <div class="container">
-    
-    <!-- LEFT COLUMN: Real-Time Multi-Device Cloud Telemetry -->
     <div class="card">
       <h2>Patient Telemetry & Motion Log</h2>
       
       <div style="text-align: center;">
         <span class="status-badge checking" id="systemStatus">⚪ Checking Sensor Sync...</span>
-        
         <p style="color: var(--text-muted); font-size: 0.9em; margin-top: 5px;">Current Detected Posture:</p>
         <div class="live-data offline" id="postureData">Device Off</div>
       </div>
 
-      <!-- 30-Second Turn Countdown -->
       <div class="timer-container" id="timerContainer" style="opacity: 0.4;">
         <div>
-          <span class="timer-label">⏱️ Turn Due Countdown (30s):</span>
-          <div style="font-size: 0.75em; color: var(--text-muted);">Cloud-synchronized across all devices</div>
+          <span class="timer-label" id="timerLabel">⏱️ Turn Due Countdown (30s):</span>
+          <div style="font-size: 0.75em; color: var(--text-muted);" id="timerDesc">Cloud-synchronized across all devices</div>
         </div>
         <div class="timer-value" id="turnTimer">--:--</div>
       </div>
 
-      <!-- Scrollable Recorded Past Positions -->
       <div class="history-header">
         <span class="history-title">📋 Cloud Posture History:</span>
         <button class="btn-clear" onclick="clearAllHistory()">Clear All 🗑️</button>
       </div>
       <div class="history-container" id="historyLog">
-        <div style="text-align: center; color: #999; padding: 20px 0; font-size: 0.85em;">
-          No turn records in cloud yet.
-        </div>
+        <div style="text-align: center; color: #999; padding: 20px 0; font-size: 0.85em;">No turn records in cloud yet.</div>
       </div>
-
-      <p style="font-size: 0.78em; color: var(--text-muted); margin-top: 15px; text-align: center;">
-        Edge Telemetry powered by Seeed XIAO ESP32C3 & MPU6050
-      </p>
+      <p style="font-size: 0.78em; color: var(--text-muted); margin-top: 15px; text-align: center;">Edge Telemetry powered by Seeed XIAO ESP32C3 & MPU6050</p>
     </div>
 
-    <!-- RIGHT COLUMN: Embedded Compliance Chart & Print Link -->
     <div class="card" style="flex: 2; min-width: 480px;">
       <h2>Repositioning Chart Compliance Log</h2>
-      
       <div class="iframe-container">
         <iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vQRfFZxyRMc_Y1nPDCFobnDk8ifKDj3yBx6sWq7Sq-Sw9ZdAEVGzhHd8DhsaZVySW50d_ZFQxYUdYX1/pubhtml?widget=true&amp;headers=false"></iframe>
       </div>
-
-      <a href="https://docs.google.com/spreadsheets/d/1KJx8Y5J1BhbirhAeJthv6a9PSitOkcAE6iouC1NWqHY/edit?usp=sharing" target="_blank" class="btn">
-        🖨️ Open Sheet for Print / Sign
-      </a>
+      <a href="https://docs.google.com/spreadsheets/d/1KJx8Y5J1BhbirhAeJthv6a9PSitOkcAE6iouC1NWqHY/edit?usp=sharing" target="_blank" class="btn">🖨️ Open Sheet for Print / Sign</a>
     </div>
-
   </div>
 
   <script>
-    // 1. LIVE CLOCK
-    setInterval(() => {
-      document.getElementById('liveClock').innerText = new Date().toLocaleTimeString();
-    }, 1000);
+    setInterval(() => { document.getElementById('liveClock').innerText = new Date().toLocaleTimeString(); }, 1000);
 
-    // ================= FIREBASE CLOUD CONFIG =================
-    const TURN_INTERVAL_SECONDS = 30; // 30s test interval
+    const TURN_INTERVAL_SECONDS = 30; 
     const BASE_DB_URL = "https://patientmonitor-4bc41-default-rtdb.asia-southeast1.firebasedatabase.app";
     const AUTH_KEY = "BCfmlBnWlgX7cNgWvh0Ho0haxfTLPlFgp99MYom1";
 
@@ -296,28 +119,57 @@
     let lastHeartbeatChangeTime = 0;
     let isDeviceOnline = false;
 
-    // BUG FIX: Prevent jumping by locking the timer start point on new turns ONLY.
     let cloudTurnTimestamp = null;
     let localSmoothTimerStart = Date.now(); 
     let activePosition = "";
+    let systemState = "ACTIVE"; 
 
-    // 2. SMOOTH LOCAL COUNTDOWN TIMER TICK
+    // 2. DYNAMIC & STATE-AWARE COUNTDOWN
     function updateCountdown() {
       const timerDisplay = document.getElementById("turnTimer");
       const postureEl = document.getElementById("postureData");
       const timerBox = document.getElementById("timerContainer");
+      const timerDesc = document.getElementById("timerDesc");
 
       if (!isDeviceOnline) {
         timerDisplay.innerText = "--:--";
-        timerDisplay.classList.remove("urgent");
+        timerDisplay.className = "timer-value";
         timerBox.style.opacity = "0.4";
-        
+        timerDesc.innerText = "Sensor is powered off";
         postureEl.innerText = "Device Off";
         postureEl.className = "live-data offline";
         return;
       }
 
       timerBox.style.opacity = "1";
+
+      // 💡 NEW: Check exactly what the ESP32 state machine is doing
+      if (systemState === "CHATBOT") {
+        timerDisplay.innerText = "LOGGING...";
+        timerDisplay.className = "timer-value frozen";
+        timerDesc.innerText = "Waiting for Telegram bot input...";
+        postureEl.classList.remove("alert");
+        return;
+      } 
+      else if (systemState === "PAUSED_TURN") {
+        timerDisplay.innerText = "PAUSED (TURN)";
+        timerDisplay.className = "timer-value frozen";
+        timerDesc.innerText = "Nurse is currently repositioning patient";
+        postureEl.classList.remove("alert");
+        return;
+      }
+      else if (systemState === "PAUSED_SOS") {
+        timerDisplay.innerText = "SOS PAUSED";
+        timerDisplay.className = "timer-value urgent";
+        timerDesc.innerText = "Patient triggered emergency assist!";
+        postureEl.classList.add("alert");
+        return;
+      }
+
+      // If state is ACTIVE, calculate normal countdown
+      timerDesc.innerText = "Cloud-synchronized across all devices";
+      timerDisplay.className = "timer-value";
+
       const elapsed = Math.floor((Date.now() - localSmoothTimerStart) / 1000);
       const remaining = TURN_INTERVAL_SECONDS - elapsed;
 
@@ -350,7 +202,11 @@
           const statusEl = document.getElementById("systemStatus");
           const postureEl = document.getElementById("postureData");
 
-          // --- SMART SENSOR ONLINE/OFFLINE DETECTION ---
+          // Sync System State from ESP32
+          if (data.SystemState) {
+            systemState = data.SystemState;
+          }
+
           if (data.Heartbeat !== undefined) {
             if (lastHeartbeatValue === null) {
               lastHeartbeatValue = data.Heartbeat;
@@ -372,37 +228,27 @@
             statusEl.className = "status-badge connected";
           }
 
-          // --- FIX: NO MORE TIMER JUMPING ---
           if (isDeviceOnline && data.Position) {
             activePosition = data.Position;
             postureEl.innerText = activePosition;
             postureEl.classList.remove("offline");
             
-            if (activePosition.toLowerCase().includes("prone")) {
+            if (activePosition.toLowerCase().includes("prone") && systemState === "ACTIVE") {
               postureEl.classList.add("alert");
             }
 
-            // ONLY reset our local stopwatch when Firebase tells us a NEW turn happened.
             if (data.LastTurnTimestamp !== cloudTurnTimestamp) {
               cloudTurnTimestamp = data.LastTurnTimestamp;
-              
-              // Calculate exactly how many seconds ago this turn happened according to ESP32
               const espUptime = data.Heartbeat || 0;
               const espTurnTime = data.LastTurnTimestamp || 0;
               let trueElapsedSeconds = espUptime - espTurnTime;
               if (trueElapsedSeconds < 0) trueElapsedSeconds = 0;
-              
-              // Lock our browser's smooth timer to that exact offset
               localSmoothTimerStart = Date.now() - (trueElapsedSeconds * 1000);
             }
           }
 
-          // --- CLOUD HISTORY LIST SYNC ---
-          if (data.History) {
-            renderCloudHistory(data.History);
-          } else {
-            document.getElementById("historyLog").innerHTML = `<div style="text-align:center; color:#999; padding:20px 0; font-size:0.85em;">No turn records in cloud yet.</div>`;
-          }
+          if (data.History) renderCloudHistory(data.History);
+          else document.getElementById("historyLog").innerHTML = `<div style="text-align:center; color:#999; padding:20px 0; font-size:0.85em;">No turn records in cloud yet.</div>`;
         })
         .catch(err => {
           document.getElementById("systemStatus").innerText = "🔴 Cloud Connection Error";
@@ -411,21 +257,15 @@
         });
     }
 
-    // 4. RENDER AND DELETE CLOUD HISTORY
     function renderCloudHistory(historyObj) {
       const container = document.getElementById("historyLog");
       container.innerHTML = "";
-
       const items = Object.entries(historyObj).reverse();
-
       items.slice(0, 30).forEach(([key, item]) => {
         const div = document.createElement("div");
         div.className = "history-item";
         div.innerHTML = `
-          <div style="flex: 1;">
-            <span class="history-pos">${item.position || "Unknown"}</span>
-            <span class="history-duration">Held: ${item.duration || "N/A"}</span>
-          </div>
+          <div style="flex: 1;"><span class="history-pos">${item.position || "Unknown"}</span><span class="history-duration">Held: ${item.duration || "N/A"}</span></div>
           <button class="btn-delete" onclick="deleteHistoryItem('${key}')" title="Delete this record">🗑️</button>
         `;
         container.appendChild(div);
@@ -434,17 +274,13 @@
 
     function deleteHistoryItem(firebaseKey) {
       if (confirm("Delete this single position record from the cloud?")) {
-        fetch(`${BASE_DB_URL}/History/${firebaseKey}.json?auth=${AUTH_KEY}`, {
-          method: 'DELETE'
-        }).then(() => syncCloudData());
+        fetch(`${BASE_DB_URL}/History/${firebaseKey}.json?auth=${AUTH_KEY}`, { method: 'DELETE' }).then(() => syncCloudData());
       }
     }
 
     function clearAllHistory() {
       if (confirm("⚠️ Are you sure you want to delete ALL posture history? This will remove it for ALL users and devices.")) {
-        fetch(`${BASE_DB_URL}/History.json?auth=${AUTH_KEY}`, {
-          method: 'DELETE'
-        }).then(() => syncCloudData());
+        fetch(`${BASE_DB_URL}/History.json?auth=${AUTH_KEY}`, { method: 'DELETE' }).then(() => syncCloudData());
       }
     }
 
