@@ -83,10 +83,10 @@
 
       <div class="timer-container" id="timerContainer" style="opacity: 0.4;">
         <div>
-          <span class="timer-label" id="timerLabel">⏱️ Turn Due Countdown (30s):</span>
+          <span class="timer-label" id="timerLabel">⏱️ Turn Due Countdown (2 mins):</span>
           <div style="font-size: 0.75em; color: var(--text-muted);" id="timerDesc">Cloud-synchronized across all devices</div>
         </div>
-        <div class="timer-value" id="turnTimer">--:--</div>
+        <div class="timer-value" id="turnTimer">02:00</div>
       </div>
 
       <div class="history-header">
@@ -111,7 +111,8 @@
   <script>
     setInterval(() => { document.getElementById('liveClock').innerText = new Date().toLocaleTimeString(); }, 1000);
 
-    const TURN_INTERVAL_SECONDS = 30; 
+    // CHANGED TO 120 SECONDS (2 MINUTES)
+    const TURN_INTERVAL_SECONDS = 120; 
     const BASE_DB_URL = "https://patientmonitor-4bc41-default-rtdb.asia-southeast1.firebasedatabase.app";
     const AUTH_KEY = "BCfmlBnWlgX7cNgWvh0Ho0haxfTLPlFgp99MYom1";
 
@@ -124,7 +125,6 @@
     let activePosition = "";
     let systemState = "ACTIVE"; 
 
-    // 2. DYNAMIC & STATE-AWARE COUNTDOWN
     function updateCountdown() {
       const timerDisplay = document.getElementById("turnTimer");
       const postureEl = document.getElementById("postureData");
@@ -143,7 +143,6 @@
 
       timerBox.style.opacity = "1";
 
-      // 💡 NEW: Check exactly what the ESP32 state machine is doing
       if (systemState === "CHATBOT") {
         timerDisplay.innerText = "LOGGING...";
         timerDisplay.className = "timer-value frozen";
@@ -166,7 +165,6 @@
         return;
       }
 
-      // If state is ACTIVE, calculate normal countdown
       timerDesc.innerText = "Cloud-synchronized across all devices";
       timerDisplay.className = "timer-value";
 
@@ -192,7 +190,6 @@
     }
     setInterval(updateCountdown, 1000);
 
-    // 3. FETCH FULL ROOT TELEMETRY FROM FIREBASE
     function syncCloudData() {
       fetch(`${BASE_DB_URL}/.json?auth=${AUTH_KEY}`)
         .then(res => res.json())
@@ -202,7 +199,6 @@
           const statusEl = document.getElementById("systemStatus");
           const postureEl = document.getElementById("postureData");
 
-          // Sync System State from ESP32
           if (data.SystemState) {
             systemState = data.SystemState;
           }
